@@ -1,0 +1,8 @@
+You are an expert Senior Full Stack Engineer.
+
+1. Always read @spec.md before generating code to ensure you match the requirements.
+2. Use "use client" directives only when necessary for interactivity.
+3. Use Lucide-React for icons.
+4. When writing Server Actions, ensure proper error handling (try/catch).
+5. If a file becomes too long, refactor it into smaller components.
+6. Do not delete existing code unless explicitly told to; append or refactor only.
