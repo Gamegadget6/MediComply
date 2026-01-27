@@ -1,6 +1,6 @@
 'use server';
 
-import puppeteer from 'puppeteer';
+import * as cheerio from 'cheerio';
 
 export type ScanResult = {
   hasCookieBanner: boolean;
@@ -8,60 +8,56 @@ export type ScanResult = {
 };
 
 export async function scanUrl(url: string): Promise<ScanResult> {
-  const fallback: ScanResult = {
-    hasCookieBanner: false,
-    hasPrivacyPolicy: false,
-  };
-
-  let browser: Awaited<ReturnType<typeof puppeteer.launch>> | null = null;
-
   try {
-    const parsedUrl = new URL(url);
-    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-      return fallback;
+    // 1. Validate URL
+    if (!url.startsWith('http')) {
+      return { hasCookieBanner: false, hasPrivacyPolicy: false };
     }
 
-    browser = await puppeteer.launch({ headless: true });
-    const page = await browser.newPage();
-    page.setDefaultNavigationTimeout(10_000);
-
-    await page.goto(parsedUrl.toString(), {
-      waitUntil: 'domcontentloaded',
-      timeout: 10_000,
+    // 2. Fetch the HTML (Lightweight & Fast)
+    // We pretend to be a real browser so sites don't block us
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      },
+      next: { revalidate: 0 } // Ensure we don't serve cached stale results
     });
 
-    const hasCookieBanner = await page.evaluate(() => {
-      const cookieSelectors = [
-        '[id*="cookie" i]',
-        '[class*="cookie" i]',
-        '[id*="consent" i]',
-        '[class*="consent" i]',
-        '[id*="gdpr" i]',
-        '[class*="gdpr" i]',
-      ];
+    if (!response.ok) {
+      return { hasCookieBanner: false, hasPrivacyPolicy: false };
+    }
 
-      const selectorMatch = cookieSelectors.some((selector) =>
-        document.querySelector(selector),
+    const html = await response.text();
+    const $ = cheerio.load(html);
+    const bodyText = $('body').text().toLowerCase();
+    const lowerHtml = html.toLowerCase();
+
+    // 3. Check for Cookie Banner (Heuristics)
+    // We look for common keywords in the code or visible text
+    const hasCookieBanner =
+      lowerHtml.includes('cookie') && (
+        lowerHtml.includes('consent') ||
+        lowerHtml.includes('banner') ||
+        lowerHtml.includes('gdpr') ||
+        bodyText.includes('we use cookies') ||
+        bodyText.includes('accept cookies')
       );
 
-      if (selectorMatch) return true;
+    // 4. Check for Privacy Policy
+    // We specifically look for Links (<a> tags) that mention privacy
+    const hasPrivacyPolicy = $('a').toArray().some((element) => {
+      const text = $(element).text().toLowerCase().trim();
+      const href = $(element).attr('href')?.toLowerCase() || '';
 
-      const bodyText = document.body?.innerText.toLowerCase() ?? '';
-      return bodyText.includes('we use cookies');
-    });
-
-    const hasPrivacyPolicy = await page.evaluate(() => {
-      return Array.from(document.querySelectorAll('a')).some((anchor) =>
-        (anchor.textContent ?? '').toLowerCase().includes('privacy'),
-      );
+      return text.includes('privacy policy') ||
+        text.includes('privacy statement') ||
+        (text === 'privacy' && href.includes('privacy'));
     });
 
     return { hasCookieBanner, hasPrivacyPolicy };
-  } catch {
-    return fallback;
-  } finally {
-    if (browser) {
-      await browser.close();
-    }
+
+  } catch (error) {
+    console.error('Scan Error:', error);
+    return { hasCookieBanner: false, hasPrivacyPolicy: false };
   }
 }
