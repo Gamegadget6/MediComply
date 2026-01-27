@@ -61,3 +61,4 @@ export async function scanUrl(url: string): Promise<ScanResult> {
     return { hasCookieBanner: false, hasPrivacyPolicy: false };
   }
 }
+// Fixed: Switched to Cheerio for Vercel support
