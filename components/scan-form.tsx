@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { submitScan } from '@/app/actions/submit-scan';
+import { isRedirectError } from 'next/dist/client/components/redirect-error';
 
 export function ScanForm() {
   const [url, setUrl] = useState('');
@@ -14,6 +15,9 @@ export function ScanForm() {
       try {
         await submitScan(formData);
       } catch (err) {
+        if (isRedirectError(err)) {
+          throw err;
+        }
         console.error(err);
         setError('Unable to submit scan right now. Please try again.');
       }
