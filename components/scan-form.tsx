@@ -13,13 +13,16 @@ export function ScanForm() {
     setError(null);
     startTransition(async () => {
       try {
-        await submitScan(formData);
-      } catch (err) {
+        const result = await submitScan(formData);
+        if (result?.error) {
+          setError(result.error);
+        }
+      } catch (err: any) {
         if (isRedirectError(err)) {
           throw err;
         }
         console.error(err);
-        setError('Unable to submit scan right now. Please try again.');
+        setError(err.message || 'Unable to submit scan right now. Please try again.');
       }
     });
   };

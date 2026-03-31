@@ -18,19 +18,25 @@ function getSupabaseClient() {
   });
 }
 
-export async function submitScan(formData: FormData) {
+export async function submitScan(formData: FormData): Promise<{ error: string } | never> {
   const rawUrl = formData.get('url');
 
   if (typeof rawUrl !== 'string') {
-    throw new Error('Invalid URL');
+    return { error: 'Invalid URL format' };
   }
 
   const url = rawUrl.trim();
   if (!url) {
-    throw new Error('URL is required');
+    return { error: 'URL is required' };
   }
 
-  const supabase = getSupabaseClient();
+  let supabase;
+  try {
+    supabase = getSupabaseClient();
+  } catch (err: any) {
+    return { error: 'Configuration Error: ' + err.message };
+  }
+
   const scanResult = await scanUrl(url);
 
   // FIX: Saving 'hasCookieBanner' and 'hasPrivacyPolicy' inside the 'results' JSON column
@@ -46,11 +52,11 @@ export async function submitScan(formData: FormData) {
 
   if (error) {
     console.error('Supabase Insert Error:', error);
-    throw new Error('Unable to save scan result');
+    return { error: 'Database Error: ' + error.message };
   }
 
   if (!data) {
-    throw new Error('No data returned from insert');
+    return { error: 'No data returned from insert' };
   }
 
   redirect(`/results/${data.id}`);
