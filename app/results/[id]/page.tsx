@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { CheckCircle2, XCircle, Lock, Unlock } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { unlock } from '@/app/actions/unlock';
+import { PrintButton } from '@/components/print-button';
 
 // 1. Force dynamic rendering so we always fetch fresh data
 export const dynamic = 'force-dynamic';
@@ -49,7 +50,8 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
     hasCookieBanner, 
     hasPrivacyPolicy,
     foundTrackers = [], // default to [] to prevent breaking old scans
-    hasInsecureForms = false // default to false
+    hasInsecureForms = false, // default to false
+    missingAltTagsCount = 0 // default to 0
   } = resultsData;
 
   // Check the 'email' column to see if it is unlocked
@@ -148,11 +150,30 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
                 </div>
               </div>
             </div>
+
+            {/* Item 5: ADA Compliance (Alt Tags) */}
+            <div className={`flex items-center justify-between p-4 border rounded-lg ${!isUnlocked ? 'blur-sm select-none' : ''}`}>
+              <div className="flex items-center gap-4">
+                {isUnlocked ? (
+                  missingAltTagsCount === 0 ? <CheckCircle2 className="text-green-500 w-8 h-8 flex-shrink-0" /> : <XCircle className="text-red-500 w-8 h-8 flex-shrink-0" />
+                ) : (
+                  <div className="w-8 h-8 bg-gray-200 rounded-full flex-shrink-0" />
+                )}
+                <div>
+                  <h3 className="font-semibold text-lg hover:text-red-600 transition-colors">ADA Accessibility Risks</h3>
+                  <p className="text-slate-500 text-sm">
+                    {missingAltTagsCount > 0 
+                      ? `Warning: Found ${missingAltTagsCount} images missing 'alt' text. ADA lawsuit liability.` 
+                      : 'Basic screen-reader checks passed.'}
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Unlock Form */}
           {!isUnlocked && (
-            <div className="mt-8 bg-slate-50 p-6 rounded-lg border border-slate-200 text-center relative">
+            <div className="mt-8 bg-slate-50 p-6 rounded-lg border border-slate-200 text-center relative print:hidden">
               <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-0" />
               <div className="relative z-10">
                 <h3 className="text-lg font-bold mb-2">Unlock Full Report</h3>
@@ -176,6 +197,9 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
               </div>
             </div>
           )}
+
+          {/* Print Button (Only show if unlocked) */}
+          {isUnlocked && <PrintButton />}
         </div>
       </div>
     </main>

@@ -7,13 +7,14 @@ export type ScanResult = {
   hasPrivacyPolicy: boolean;
   foundTrackers: string[];
   hasInsecureForms: boolean;
+  missingAltTagsCount: number;
 };
 
 export async function scanUrl(url: string): Promise<ScanResult> {
   try {
     // 1. Validate URL
     if (!url.startsWith('http')) {
-      return { hasCookieBanner: false, hasPrivacyPolicy: false, foundTrackers: [], hasInsecureForms: false };
+      return { hasCookieBanner: false, hasPrivacyPolicy: false, foundTrackers: [], hasInsecureForms: false, missingAltTagsCount: 0 };
     }
 
     // 2. Fetch the HTML (Lightweight & Fast)
@@ -26,7 +27,7 @@ export async function scanUrl(url: string): Promise<ScanResult> {
     });
 
     if (!response.ok) {
-      return { hasCookieBanner: false, hasPrivacyPolicy: false, foundTrackers: [], hasInsecureForms: false };
+      return { hasCookieBanner: false, hasPrivacyPolicy: false, foundTrackers: [], hasInsecureForms: false, missingAltTagsCount: 0 };
     }
 
     const html = await response.text();
@@ -76,11 +77,20 @@ export async function scanUrl(url: string): Promise<ScanResult> {
       return action.startsWith('http://'); // Explicitly missing the 's' in https
     });
 
-    return { hasCookieBanner, hasPrivacyPolicy, foundTrackers, hasInsecureForms };
+    // 7. Check for ADA Compliance (Missing image alt tags)
+    let missingAltTagsCount = 0;
+    $('img').each((_, element) => {
+      const alt = $(element).attr('alt');
+      if (alt === undefined || alt.trim() === '') {
+        missingAltTagsCount++;
+      }
+    });
+
+    return { hasCookieBanner, hasPrivacyPolicy, foundTrackers, hasInsecureForms, missingAltTagsCount };
 
   } catch (error) {
     console.error('Scan Error:', error);
-    return { hasCookieBanner: false, hasPrivacyPolicy: false, foundTrackers: [], hasInsecureForms: false };
+    return { hasCookieBanner: false, hasPrivacyPolicy: false, foundTrackers: [], hasInsecureForms: false, missingAltTagsCount: 0 };
   }
 }
 // Fixed: Switched to Cheerio for Vercel support

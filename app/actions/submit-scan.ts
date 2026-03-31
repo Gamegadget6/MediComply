@@ -25,9 +25,14 @@ export async function submitScan(formData: FormData): Promise<{ error: string } 
     return { error: 'Invalid URL format' };
   }
 
-  const url = rawUrl.trim();
+  let url = rawUrl.trim();
   if (!url) {
     return { error: 'URL is required' };
+  }
+
+  // 1. Auto-Correct URL: Add https:// if missing
+  if (!/^https?:\/\//i.test(url)) {
+    url = 'https://' + url;
   }
 
   let supabase;
