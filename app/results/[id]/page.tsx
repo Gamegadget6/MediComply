@@ -45,7 +45,12 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
     ? JSON.parse(scan.results)
     : scan.results;
 
-  const { hasCookieBanner, hasPrivacyPolicy } = resultsData;
+  const { 
+    hasCookieBanner, 
+    hasPrivacyPolicy,
+    foundTrackers = [], // default to [] to prevent breaking old scans
+    hasInsecureForms = false // default to false
+  } = resultsData;
 
   // Check the 'email' column to see if it is unlocked
   const isUnlocked = !!scan.email;
@@ -102,6 +107,44 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
                 <div>
                   <h3 className="font-semibold text-lg">Privacy Policy Link</h3>
                   <p className="text-slate-500 text-sm">Must be clearly visible on homepage.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Item 3: Trackers (HIPAA Risk) */}
+            <div className={`flex items-center justify-between p-4 border rounded-lg ${!isUnlocked ? 'blur-sm select-none' : ''}`}>
+              <div className="flex items-center gap-4">
+                {isUnlocked ? (
+                  foundTrackers.length === 0 ? <CheckCircle2 className="text-green-500 w-8 h-8 flex-shrink-0" /> : <XCircle className="text-red-500 w-8 h-8 flex-shrink-0" />
+                ) : (
+                  <div className="w-8 h-8 bg-gray-200 rounded-full flex-shrink-0" />
+                )}
+                <div>
+                  <h3 className="font-semibold text-lg hover:text-red-600 transition-colors">Third-Party Trackers</h3>
+                  <p className="text-slate-500 text-sm">
+                    {foundTrackers.length > 0 
+                      ? `Warning: Found ${foundTrackers.join(', ')}. High HIPAA violation risk.` 
+                      : 'No major advertising scripts detected on homepage.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Item 4: Insecure Forms (HIPAA Risk) */}
+            <div className={`flex items-center justify-between p-4 border rounded-lg ${!isUnlocked ? 'blur-sm select-none' : ''}`}>
+              <div className="flex items-center gap-4">
+                {isUnlocked ? (
+                  !hasInsecureForms ? <CheckCircle2 className="text-green-500 w-8 h-8 flex-shrink-0" /> : <XCircle className="text-red-500 w-8 h-8 flex-shrink-0" />
+                ) : (
+                  <div className="w-8 h-8 bg-gray-200 rounded-full flex-shrink-0" />
+                )}
+                <div>
+                  <h3 className="font-semibold text-lg">Form Encryption checks</h3>
+                  <p className="text-slate-500 text-sm">
+                    {hasInsecureForms 
+                      ? 'Critical Warning: Client intake forms are transmitting over unencrypted HTTP.' 
+                      : 'All detected forms utilize secure HTTPS or relative paths.'}
+                  </p>
                 </div>
               </div>
             </div>

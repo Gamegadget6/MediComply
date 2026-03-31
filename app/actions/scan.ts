@@ -5,13 +5,15 @@ import * as cheerio from 'cheerio';
 export type ScanResult = {
   hasCookieBanner: boolean;
   hasPrivacyPolicy: boolean;
+  foundTrackers: string[];
+  hasInsecureForms: boolean;
 };
 
 export async function scanUrl(url: string): Promise<ScanResult> {
   try {
     // 1. Validate URL
     if (!url.startsWith('http')) {
-      return { hasCookieBanner: false, hasPrivacyPolicy: false };
+      return { hasCookieBanner: false, hasPrivacyPolicy: false, foundTrackers: [], hasInsecureForms: false };
     }
 
     // 2. Fetch the HTML (Lightweight & Fast)
@@ -24,7 +26,7 @@ export async function scanUrl(url: string): Promise<ScanResult> {
     });
 
     if (!response.ok) {
-      return { hasCookieBanner: false, hasPrivacyPolicy: false };
+      return { hasCookieBanner: false, hasPrivacyPolicy: false, foundTrackers: [], hasInsecureForms: false };
     }
 
     const html = await response.text();
@@ -54,11 +56,31 @@ export async function scanUrl(url: string): Promise<ScanResult> {
         (text === 'privacy' && href.includes('privacy'));
     });
 
-    return { hasCookieBanner, hasPrivacyPolicy };
+    // 5. Check for Trackers (HIPAA violation risks)
+    // Look for scripts or common tracking pixel signatures in the HTML
+    const foundTrackers: string[] = [];
+    if (lowerHtml.includes('fbevents.js') || lowerHtml.includes('fbq(')) {
+      foundTrackers.push('Meta (Facebook) Pixel');
+    }
+    if (lowerHtml.includes('googletagmanager.com') || lowerHtml.includes('google-analytics.com') || lowerHtml.includes('gtag(')) {
+      foundTrackers.push('Google Analytics');
+    }
+    if (lowerHtml.includes('tiktok.com') || lowerHtml.includes('ttq.load')) {
+      foundTrackers.push('TikTok Pixel');
+    }
+
+    // 6. Check for Insecure Forms (HIPAA violation risk)
+    // Any form sending over pure HTTP instead of HTTPS is a liability
+    const hasInsecureForms = $('form').toArray().some((element) => {
+      const action = $(element).attr('action')?.toLowerCase() || '';
+      return action.startsWith('http://'); // Explicitly missing the 's' in https
+    });
+
+    return { hasCookieBanner, hasPrivacyPolicy, foundTrackers, hasInsecureForms };
 
   } catch (error) {
     console.error('Scan Error:', error);
-    return { hasCookieBanner: false, hasPrivacyPolicy: false };
+    return { hasCookieBanner: false, hasPrivacyPolicy: false, foundTrackers: [], hasInsecureForms: false };
   }
 }
 // Fixed: Switched to Cheerio for Vercel support
